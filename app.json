@@ -1,0 +1,79 @@
+{
+    "name": "app-compute-tract-profile",
+    "version": "1.0.0",
+    "brainlife": true,
+
+    "title": "Compute Tract Profile",
+    "desc": "Computes diffusion metric profiles along white matter tracts using the compute_tract_profile.py script from the tract_align pipeline.",
+    "author": "Gabriele Amorosino <gabriele.amorosino@utexas.edu>",
+    "cite": "",
+    "tags": ["tractography", "diffusion", "tract-profile", "white-matter"],
+    "source": "https://github.com/gamorosino/app-compute-tract-profile",
+
+    "inputs": [
+        {
+            "id": "tck",
+            "datatype": "neuro/tck",
+            "desc": "Input tractogram in TCK format",
+            "optional": true
+        },
+        {
+            "id": "trk",
+            "datatype": "neuro/trk",
+            "desc": "Input tractogram in TRK format",
+            "optional": true
+        },
+        {
+            "id": "fa",
+            "datatype": "neuro/scalar",
+            "desc": "Fractional anisotropy (FA) NIfTI image",
+            "optional": true
+        },
+        {
+            "id": "md",
+            "datatype": "neuro/scalar",
+            "desc": "Mean diffusivity (MD) NIfTI image",
+            "optional": true
+        },
+        {
+            "id": "ad",
+            "datatype": "neuro/scalar",
+            "desc": "Axial diffusivity (AD) NIfTI image",
+            "optional": true
+        },
+        {
+            "id": "rd",
+            "datatype": "neuro/scalar",
+            "desc": "Radial diffusivity (RD) NIfTI image",
+            "optional": true
+        },
+        {
+            "id": "t1",
+            "datatype": "neuro/anat/t1w",
+            "desc": "T1-weighted anatomical reference image",
+            "optional": true
+        }
+    ],
+
+    "outputs": [
+        {
+            "id": "output",
+            "datatype": "raw",
+            "desc": "Tract profile statistics (CSV/TSV)",
+            "files": [{"name": "output"}]
+        }
+    ],
+
+    "config": {
+        "n_points": {
+            "type": "integer",
+            "default": 100,
+            "desc": "Number of points to resample along each streamline for profiling"
+        }
+    },
+
+    "container": {
+        "type": "singularity",
+        "image": "docker://gamorosino/tract_align:latest"
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "tck": "/path/to/tractogram.tck",
+    "fa": "/path/to/fa.nii.gz",
+    "md": "/path/to/md.nii.gz",
+    "ad": "/path/to/ad.nii.gz",
+    "rd": "/path/to/rd.nii.gz",
+    "t1": "/path/to/t1w.nii.gz",
+    "n_points": 100
+}

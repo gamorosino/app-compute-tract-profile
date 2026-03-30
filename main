@@ -1,0 +1,285 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=1,vmem=8g,walltime=1:00:00
+#PBS -N app-compute-tract-profile
+#PBS -V
+
+set -euo pipefail
+
+CONFIG=${CONFIG:-config.json}
+
+if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is required but not found in PATH" >&2
+    exit 1
+fi
+
+if [ ! -f "$CONFIG" ]; then
+    echo "Error: $CONFIG not found" >&2
+    exit 1
+fi
+
+# -----------------------------
+# Helpers
+# -----------------------------
+
+# Append a flag with a string value if config key exists and is non-null/non-empty
+append_opt() {
+    local key="$1"; shift
+    local flag="$1"; shift
+
+    local val
+    val=$(jq -er --arg k "$key" '.[$k] // empty' "$CONFIG" 2>/dev/null || true)
+
+    if [ -n "
+    ${val:-}" ] && [ "$val" != "null" ]; then
+        args+=("$flag" "$val")
+    fi
+}
+
+# Append a flag with a numeric value if key exists and is non-null
+append_num_opt() {
+    local key="$1"; shift
+    local flag="$1"; shift
+
+    local val
+    val=$(jq -er --arg k "$key" '.[$k] // empty' "$CONFIG" 2>/dev/null || true)
+
+    if [ -n "
+    ${val:-}" ] && [ "$val" != "null" ]; then
+        args+=("$flag" "$val")
+    fi
+}
+
+# Append a boolean flag if key is true
+append_bool_flag() {
+    local key="$1"; shift
+    local flag="$1"; shift
+
+    local val
+    val=$(jq -er --arg k "$key" '.[$k] // false' "$CONFIG" 2>/dev/null || echo "false")
+
+    if [ "$val" = "true" ]; then
+        args+=("$flag")
+    fi
+}
+
+# Append a list flag (nargs="+") if key exists and array length > 0
+append_list_opt() {
+    local key="$1"; shift
+    local flag="$1"; shift
+
+    # Ensure array
+    local is_array
+    is_array=$(jq -er --arg k "$key" '(.[$k] | type) == "array"' "$CONFIG" 2>/dev/null || echo "false")
+
+    if [ "$is_array" = "true" ]; then
+        local n
+        n=$(jq -er --arg k "$key" '.[$k] | length' "$CONFIG" 2>/dev/null || echo "0")
+        if [ "$n" -gt 0 ]; then
+            args+=("$flag")
+            # shellcheck disable=SC2207
+            local items=( $(jq -r --arg k "$key" '.[$k][]' "$CONFIG") )
+            args+=("${items[@]}")
+        fi
+    fi
+}
+
+# -----------------------------
+# Inputs (required-ish)
+# -----------------------------
+
+tck=$(jq -r '.tck // empty' "$CONFIG")
+trk=$(jq -r '.trk // empty' "$CONFIG")
+
+if [ -n "
+    ${tck:-}" ] && [ "$tck" != "null" ]; then
+    tractogram="$tck"
+elif [ -n "
+    ${trk:-}" ] && [ "$trk" != "null" ]; then
+    tractogram="$trk"
+else
+    echo "Error: No tractogram input (tck or trk) found in $CONFIG" >&2
+    exit 1
+fi
+
+# diffusion metrics (kept for backward compatibility)
+fa=$(jq -r '.fa // empty' "$CONFIG")
+md=$(jq -r '.md // empty' "$CONFIG")
+ad=$(jq -r '.ad // empty' "$CONFIG")
+rd=$(jq -r '.rd // empty' "$CONFIG")
+
+# scalar list (new; corresponds to compute_tract_profile.py --scalar/--scalars)
+scalar=$(jq -r '.scalar // empty' "$CONFIG")
+
+# If user provided "scalars" array, we will pass it through and run compute_tract_profile.py once.
+# Otherwise, we will fall back to the legacy per-metric loop.
+scalars_is_array=$(jq -er '(.scalars | type) == "array"' "$CONFIG" 2>/dev/null || echo "false")
+
+# References
+# (single)
+t1w=$(jq -r '.t1 // empty' "$CONFIG")
+reference_img=$(jq -r '.reference_img // empty' "$CONFIG")
+# (multi)
+references_is_array=$(jq -er '(.references | type) == "array"' "$CONFIG" 2>/dev/null || echo "false")
+
+# Shared numeric option
+n_points=$(jq -r '.n_points // empty' "$CONFIG")
+
+# Output dir
+output_dir=./output
+mkdir -p "${output_dir}"
+
+module load singularity 2>/dev/null || true
+
+# -----------------------------
+# Build pass-through args from config.json
+# -----------------------------
+
+args=()
+
+# Always set tract for backward compatibility; multi-tract mode can use --tracts via config.
+args+=(--tract "$tractogram")
+
+# Multi-tract mode pass-through
+append_list_opt tracts --tracts
+append_list_opt scalars --scalars
+append_list_opt references --references
+
+# Single scalar pass-through (only used when not using legacy per-metric loop)
+if [ "$scalars_is_array" != "true" ]; then
+    # prefer explicit "scalar" key, else legacy "fa" if present (to support old configs)
+    if [ -n "
+    ${scalar:-}" ] && [ "$scalar" != "null" ]; then
+        args+=(--scalar "$scalar")
+    fi
+fi
+
+# reference image: prefer explicit reference_img key, else legacy t1
+if [ -n "
+    ${reference_img:-}" ] && [ "$reference_img" != "null" ]; then
+    args+=(--reference-img "$reference_img")
+elif [ -n "
+    ${t1w:-}" ] && [ "$t1w" != "null" ]; then
+    args+=(--reference-img "$t1w")
+fi
+
+# Optional numeric args
+if [ -n "
+    ${n_points:-}" ] && [ "$n_points" != "null" ]; then
+    args+=(--n_points "$n_points")
+append_num_opt perc --perc
+append_num_opt length_thr --length-thr
+append_num_opt n_clusters --n-clusters
+append_num_opt num_prototypes --num-prototypes
+append_num_opt weights_std --weights-std
+append_num_opt line_width --line-width
+
+# Optional string args
+append_opt output --output
+append_opt centroid_path --centroid-path
+append_opt centroid_method --centroid-method
+append_opt colors --colors
+append_opt color_map --color-map
+append_opt y_axis_range --y-axis-range
+append_opt ylabel --ylabel
+append_opt dispersion_metric --dispersion-metric
+append_opt boxplot_stat --boxplot-stat
+append_opt boxplot_title --boxplot-title
+append_opt boxplot_x_label --boxplot-x-label
+append_opt boxplot_width --boxplot-width
+append_opt boxplot_spacing --boxplot-spacing
+append_opt profile_figure_size --profile-figure-size
+append_opt boxplot_figure_size --boxplot-figure-size
+append_opt matrix_figure_size --matrix-figure-size
+append_opt hist_figure_size --hist-figure-size
+append_opt ref3d_figure_size --ref3d-figure-size
+append_opt boxplot_err --boxplot-err
+append_opt tract_profile_font_size --tract-profile-font-size
+append_opt boxplot_font_size --boxplot-font-size
+append_opt boxplot_y_axis_range --boxplot-y-axis-range
+
+# Optional list args
+append_list_opt tract_labels --tract-labels
+
+# Optional boolean flags
+append_bool_flag smooth_density --smooth-density
+append_bool_flag no_weights --no-weights
+append_bool_flag weight_by_centroid --weight-by-centroid
+append_bool_flag average_centroid --average-centroid
+append_bool_flag no_weight_by_centroid_curve --no-weight-by-centroid-curve
+append_bool_flag weighted_dispersion --weighted-dispersion
+append_bool_flag no_dispersion --no-dispersion
+append_bool_flag weight_node_by_centroid --weight-node-by-centroid
+append_bool_flag no_legend --no-legend
+append_bool_flag boxplot_summary --boxplot-summary
+
+# Default output prefix if not specified
+if ! jq -e '.output' "$CONFIG" >/dev/null 2>&1; then
+    # Legacy behavior: when looping over FA/MD/AD/RD, we used output_dir/metric.
+    # For single-run mode, default to output_dir/tract_profile.
+    :
+fi
+
+# -----------------------------
+# Execution modes
+# -----------------------------
+
+# Mode 1: explicit scalars array or explicit scalar key => run once and let compute_tract_profile.py handle everything
+if [ "$scalars_is_array" = "true" ] || ( [ -n "
+    ${scalar:-}" ] && [ "$scalar" != "null" ] ); then
+    # if user didn't supply --output, default to output_dir/tract_profile
+    if ! jq -e '.output' "$CONFIG" >/dev/null 2>&1; then
+        args+=(--output "${output_dir}/tract_profile")
+    fi
+
+    cmd=(python ./compute_tract_profile.py "${args[@]}")
+
+    singularity exec -e \
+        docker://gamorosino/tract_align:latest \
+        micromamba run -n tract_align "${cmd[@]}"
+
+    exit 0
+fi
+
+# Mode 2 (legacy): run once per metric key fa/md/ad/rd
+metric_names=()
+metric_paths=()
+if [ -n "
+    ${fa:-}" ] && [ "$fa" != "null" ]; then
+    metric_names+=("fa")
+    metric_paths+=("$fa")
+fi
+if [ -n "
+    ${md:-}" ] && [ "$md" != "null" ]; then
+    metric_names+=("md")
+    metric_paths+=("$md")
+fi
+if [ -n "
+    ${ad:-}" ] && [ "$ad" != "null" ]; then
+    metric_names+=("ad")
+    metric_paths+=("$ad")
+fi
+if [ -n "
+    ${rd:-}" ] && [ "$rd" != "null" ]; then
+    metric_names+=("rd")
+    metric_paths+=("$rd")
+fi
+
+if [ ${#metric_paths[@]} -eq 0 ]; then
+    echo "Error: No scalar input provided. Provide either 'scalar', 'scalars', or one of fa/md/ad/rd in $CONFIG" >&2
+    exit 1
+fi
+
+for i in "${!metric_names[@]}"; do
+    metric="${metric_names[$i]}"
+    scalar_path="${metric_paths[$i]}"
+
+    cmd=(python ./compute_tract_profile.py \
+          --tract "${tractogram}" \
+          --scalar "${scalar_path}" \
+          "${args[@]}" \
+          --output "${output_dir}/${metric}")
+
+    singularity exec -e \
+        docker://gamorosino/tract_align:latest \
+        micromamba run -n tract_align "${cmd[@]}"
+done
