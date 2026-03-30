@@ -1,6 +1,6 @@
 # Tract Profile Computation (app-compute-tract-profile)
 
-`app-compute-tract-profile` computes diffusion metric/scalar profiles along white matter tracts using `compute_tract_profile.py` (AFQ-style tract profiling with optional centroid/medoid/skeleton reference curves, weighting strategies, dispersion, and multiple plotting outputs).
+`app-compute-tract-profile` computes diffusion metric/scalar profiles along white matter tracts using `compute_tract_profile.py` (tract profiling with optional centroid/medoid/skeleton reference curves, weighting strategies, dispersion, and multiple plotting outputs).
 
 Repository contents:
 - `compute_tract_profile.py`: the Python CLI that does the computation and plotting.
