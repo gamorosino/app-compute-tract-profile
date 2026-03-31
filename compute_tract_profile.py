@@ -429,7 +429,7 @@ def compute_dispersion_matrix(scalar_matrix, method='std', weights=None):
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 TRACKLIB_PATH = os.path.abspath(
-    os.path.join(SCRIPT_DIR, "/libraries")
+    os.path.join(SCRIPT_DIR, "libraries")
 )
 MBKM_PATH = os.path.abspath(
     os.path.join(SCRIPT_DIR, "../tractogram_alignment_repo/code/wm_registration")
