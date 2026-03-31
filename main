@@ -220,8 +220,7 @@ fi
 # -----------------------------
 
 # Mode 1: explicit scalars array or explicit scalar key => run once and let compute_tract_profile.py handle everything
-if [ "$scalars_is_array" = "true" ] || ( [ -n "
-    ${scalar:-}" ] && [ "$scalar" != "null" ] ); then
+if [ "$scalars_is_array" = "true" ] || ( [ -n "${scalar:-}" ] && [ "$scalar" != "null" ] ); then
     # if user didn't supply --output, default to output_dir/tract_profile
     if ! jq -e '.output' "$CONFIG" >/dev/null 2>&1; then
         args+=(--output "${output_dir}/tract_profile")
