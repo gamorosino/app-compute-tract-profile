@@ -29,8 +29,7 @@ append_opt() {
     local val
     val=$(jq -er --arg k "$key" '.[$k] // empty' "$CONFIG" 2>/dev/null || true)
 
-    if [ -n "
-    ${val:-}" ] && [ "$val" != "null" ]; then
+    if [ -n "${val:-}" ] && [ "$val" != "null" ]; then
         args+=("$flag" "$val")
     fi
 }
@@ -43,8 +42,7 @@ append_num_opt() {
     local val
     val=$(jq -er --arg k "$key" '.[$k] // empty' "$CONFIG" 2>/dev/null || true)
 
-    if [ -n "
-    ${val:-}" ] && [ "$val" != "null" ]; then
+    if [ -n "${val:-}" ] && [ "$val" != "null" ]; then
         args+=("$flag" "$val")
     fi
 }
@@ -90,11 +88,9 @@ append_list_opt() {
 tck=$(jq -r '.tck // empty' "$CONFIG")
 trk=$(jq -r '.trk // empty' "$CONFIG")
 
-if [ -n "
-    ${tck:-}" ] && [ "$tck" != "null" ]; then
+if [ -n "${tck:-}" ] && [ "$tck" != "null" ]; then
     tractogram="$tck"
-elif [ -n "
-    ${trk:-}" ] && [ "$trk" != "null" ]; then
+elif [ -n "${trk:-}" ] && [ "$trk" != "null" ]; then
     tractogram="$trk"
 else
     echo "Error: No tractogram input (tck or trk) found in $CONFIG" >&2
@@ -147,25 +143,22 @@ append_list_opt references --references
 # Single scalar pass-through (only used when not using legacy per-metric loop)
 if [ "$scalars_is_array" != "true" ]; then
     # prefer explicit "scalar" key, else legacy "fa" if present (to support old configs)
-    if [ -n "
-    ${scalar:-}" ] && [ "$scalar" != "null" ]; then
+    if [ -n "${scalar:-}" ] && [ "$scalar" != "null" ]; then
         args+=(--scalar "$scalar")
     fi
 fi
 
 # reference image: prefer explicit reference_img key, else legacy t1
-if [ -n "
-    ${reference_img:-}" ] && [ "$reference_img" != "null" ]; then
+if [ -n "${reference_img:-}" ] && [ "$reference_img" != "null" ]; then
     args+=(--reference-img "$reference_img")
-elif [ -n "
-    ${t1w:-}" ] && [ "$t1w" != "null" ]; then
+elif [ -n "${t1w:-}" ] && [ "$t1w" != "null" ]; then
     args+=(--reference-img "$t1w")
 fi
 
 # Optional numeric args
-if [ -n "
-    ${n_points:-}" ] && [ "$n_points" != "null" ]; then
+if [ -n "${n_points:-}" ] && [ "$n_points" != "null" ]; then
     args+=(--n_points "$n_points")
+fi
 append_num_opt perc --perc
 append_num_opt length_thr --length-thr
 append_num_opt n_clusters --n-clusters
@@ -243,23 +236,19 @@ fi
 # Mode 2 (legacy): run once per metric key fa/md/ad/rd
 metric_names=()
 metric_paths=()
-if [ -n "
-    ${fa:-}" ] && [ "$fa" != "null" ]; then
+if [ -n "${fa:-}" ] && [ "$fa" != "null" ]; then
     metric_names+=("fa")
     metric_paths+=("$fa")
 fi
-if [ -n "
-    ${md:-}" ] && [ "$md" != "null" ]; then
+if [ -n "${md:-}" ] && [ "$md" != "null" ]; then
     metric_names+=("md")
     metric_paths+=("$md")
 fi
-if [ -n "
-    ${ad:-}" ] && [ "$ad" != "null" ]; then
+if [ -n "${ad:-}" ] && [ "$ad" != "null" ]; then
     metric_names+=("ad")
     metric_paths+=("$ad")
 fi
-if [ -n "
-    ${rd:-}" ] && [ "$rd" != "null" ]; then
+if [ -n "${rd:-}" ] && [ "$rd" != "null" ]; then
     metric_names+=("rd")
     metric_paths+=("$rd")
 fi
