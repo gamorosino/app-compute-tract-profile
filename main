@@ -103,6 +103,9 @@ md=$(jq -r '.md // empty' "$CONFIG")
 ad=$(jq -r '.ad // empty' "$CONFIG")
 rd=$(jq -r '.rd // empty' "$CONFIG")
 
+echo "tck:" $tck
+echo "fa:" $fa
+
 # scalar list (new; corresponds to compute_tract_profile.py --scalar/--scalars)
 scalar=$(jq -r '.scalar // empty' "$CONFIG")
 
