@@ -229,7 +229,7 @@ if [ "$scalars_is_array" = "true" ] || ( [ -n "${scalar:-}" ] && [ "$scalar" != 
     cmd=(python ./compute_tract_profile.py "${args[@]}")
 
     singularity exec -e \
-        docker://gamorosino/tract_align:latest \
+        docker://gamorosino/tract_align:v1.0 \
         micromamba run -n tract_align "${cmd[@]}"
 
     exit 0
