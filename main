@@ -271,6 +271,6 @@ for i in "${!metric_names[@]}"; do
           --output "${output_dir}/${metric}")
 
     singularity exec -e \
-        docker://gamorosino/tract_align:latest \
+        docker://gamorosino/tract_align:v1.0 \
         micromamba run -n tract_align "${cmd[@]}"
 done
