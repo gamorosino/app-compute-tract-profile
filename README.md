@@ -119,7 +119,7 @@ Valid `centroid_method` values:
 | config key | Type | CLI flag |
 |---|---:|---|
 | `perc` | float | `--perc` |
-| `smooth_density` | bool | `--smooth-density` (flag if true) |
+| `smooth_density` | bool | `--smooth-density` (flag if false) |
 | `length_thr` | float | `--length-thr` |
 
 ### 6) MBKM options
