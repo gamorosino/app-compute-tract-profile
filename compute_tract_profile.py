@@ -64,6 +64,34 @@ from scipy.stats import pearsonr, spearmanr
 from matplotlib.collections import LineCollection
 import matplotlib.colors as mcolors
 import csv
+
+def add_metric_to_tract_measure_map(
+    tract_measure_map,
+    subject_id,
+    structure_id,
+    metric_name,
+    profile,
+    dispersion,
+    x_coords=None,
+    y_coords=None,
+    z_coords=None,
+):
+    for node in range(len(profile)):
+        key = (structure_id, node + 1)
+
+        if key not in tract_measure_map:
+            tract_measure_map[key] = {
+                "subjectID": subject_id,
+                "structureID": structure_id,
+                "nodeID": node + 1,
+                "x_coords": x_coords[node] if x_coords is not None else "",
+                "y_coords": y_coords[node] if y_coords is not None else "",
+                "z_coords": z_coords[node] if z_coords is not None else "",
+            }
+
+        tract_measure_map[key][metric_name] = profile[node]
+        tract_measure_map[key][f"{metric_name}_sd"] = dispersion[node] if dispersion is not None else ""
+
 def nature_style_plot(
     ax,
     ymin=None,
