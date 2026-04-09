@@ -1008,6 +1008,7 @@ def main():
         default=None,
         help="Optional y-axis limits as 'min,max' (e.g., 0,0.2)."
     )
+    ap.add_argument("--subject-id", default="", help="Subject ID for tractmeasures.csv")
     args = ap.parse_args()
 
 
@@ -1107,7 +1108,7 @@ def main():
 
     all_profiles = {}
     all_ref_curves = {}
-    tract_measure_rows = []
+    tract_measure_map = {}
     # Determine tract list
     tract_paths = [args.tract] if args.tract else args.tracts
     tract_colors = []
@@ -1151,18 +1152,20 @@ def main():
             else:
                 print(f"[INFO] Dispersion disabled (--no-dispersion).")
             
-            for node in range(len(profile)):
-                tract_measure_rows.append({
-                    "subjectID": Path(args.output).name,
-                    "structureID": Path(tract_path).stem,
-                    "nodeID": node + 1,
-                    "scalar": profile[node],
-                    "scalar_sd": dispersion[node] if dispersion is not None else "",
-                    "x_coords": "",
-                    "y_coords": "",
-                    "z_coords": "",
-                })
-            
+            metric_name = Path(scalar_path).stem.split(".")[0]
+
+            add_metric_to_tract_measure_map(
+                tract_measure_map=tract_measure_map,
+                subject_id=args.subject_id,
+                structure_id=Path(tract_path).stem,
+                metric_name=metric_name,
+                profile=profile,
+                dispersion=dispersion,
+                x_coords=None,
+                y_coords=None,
+                z_coords=None,
+            )
+                        
             # --- Save profile ---
             np.savez(f"{args.output}_{Path(tract_path).stem}_Yeatman.npz", profile=profile)
             print(f"[INFO] Saved Yeatman profile → {args.output}_{Path(tract_path).stem}_Yeatman.npz")
@@ -1200,25 +1203,31 @@ def main():
         os.makedirs(tract_profiles_dir, exist_ok=True)
         
         csv_path = os.path.join(tractmeasures_dir, "tractmeasures.csv")
-        with open(csv_path, "w", newline="") as f:
-             writer = csv.DictWriter(
-                 f,
-                 fieldnames=[
-                     "subjectID",
-                     "structureID",
-                     "nodeID",
-                     "scalar",
-                     "scalar_sd",
-                     "x_coords",
-                     "y_coords",
-                     "z_coords",
-                 ],
-             )
-             writer.writeheader()
-             writer.writerows(tract_measure_rows)
-      
+
+        rows = list(tract_measure_map.values())
+        rows.sort(key=lambda r: (r["structureID"], r["nodeID"]))
+
+        metric_names = sorted({
+            k[:-3] if k.endswith("_sd") else k
+            for row in rows
+            for k in row.keys()
+            if k not in {"subjectID","structureID","nodeID","x_coords","y_coords","z_coords"}
+            and not k.endswith("_coords")
+        })
+
+        fieldnames = ["subjectID","structureID","nodeID"]
+
+        for metric in metric_names:
+            fieldnames.extend([metric,f"{metric}_sd"])
+
+        fieldnames.extend(["x_coords","y_coords","z_coords"])
+
+        with open(csv_path,"w",newline="") as f:
+            writer = csv.DictWriter(f,fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+
         print(f"[INFO] Saved tract measures → {csv_path}")
-      
         # skip centroid-related processing
         return
 
@@ -1340,17 +1349,17 @@ def main():
             else:
                 print("[INFO] Dispersion computation disabled (--no-dispersion).")
             
-            for node in range(len(profile)):
-                tract_measure_rows.append({
-                    "subjectID": Path(args.output).name,
-                    "structureID": tract_name,
-                    "nodeID": node + 1,
-                    "scalar": profile[node],
-                    "scalar_sd": dispersion[node] if dispersion is not None else "",
-                    "x_coords": ref_curve[node, 0] if ref_curve is not None else "",
-                    "y_coords": ref_curve[node, 1] if ref_curve is not None else "",
-                    "z_coords": ref_curve[node, 2] if ref_curve is not None else "",
-                })
+            metric_name = Path(scalar_path).name.replace(".nii.gz","").replace(".nii","")
+            add_metric_to_tract_measure_map(
+              tract_measure_map=tract_measure_map,
+              subject_id=args.subject_id,
+              structure_id=tract_name,
+              metric_name=metric_name,
+              profile=profile,
+              dispersion=dispersion,
+              x_coords=ref_curve[:, 0] if ref_curve is not None else None,
+              y_coords=ref_curve[:, 1] if ref_curve is not None else None,
+              z_coords=ref_curve[:, 2] if ref_curve is not None else None,    )
             
             np.savez(f"{output_prefix}_{m}_dispersion.npz", dispersion=dispersion)
             profiles[f"{m}_dispersion"] = dispersion
@@ -1600,26 +1609,30 @@ def main():
       
       csv_path = os.path.join(tractmeasures_dir, "tractmeasures.csv")
       
-      with open(csv_path, "w", newline="") as f:
-          writer = csv.DictWriter(
-              f,
-              fieldnames=[
-                  "subjectID",
-                  "structureID",
-                  "nodeID",
-                  "scalar",
-                  "scalar_sd",
-                  "x_coords",
-                  "y_coords",
-                  "z_coords",
-              ],
-          )
+      rows = list(tract_measure_map.values())
+      rows.sort(key=lambda r: (r["structureID"], r["nodeID"]))
+      
+      metric_names = sorted({
+          k[:-3] if k.endswith("_sd") else k
+          for row in rows
+          for k in row.keys()
+          if k not in {"subjectID","structureID","nodeID","x_coords","y_coords","z_coords"}
+          and not k.endswith("_coords")
+      })
+      
+      fieldnames = ["subjectID","structureID","nodeID"]
+      
+      for metric in metric_names:
+          fieldnames.extend([metric,f"{metric}_sd"])
+      
+      fieldnames.extend(["x_coords","y_coords","z_coords"])
+      
+      with open(csv_path,"w",newline="") as f:
+          writer = csv.DictWriter(f,fieldnames=fieldnames)
           writer.writeheader()
-          writer.writerows(tract_measure_rows)
+          writer.writerows(rows)
       
       print(f"[INFO] Saved tract measures → {csv_path}")
-      
-      return   
     return
 
 
