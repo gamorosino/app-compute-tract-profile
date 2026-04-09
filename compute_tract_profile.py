@@ -982,6 +982,24 @@ def main():
     )
     args = ap.parse_args()
 
+
+    base_dir = os.path.dirname(args.output)
+    if base_dir == "":
+        base_dir = "."
+
+    figures_dir = os.path.join(base_dir, "figures")
+    tractmeasures_dir = os.path.join(base_dir, "tractmeasures")
+    work_dir = os.path.join(base_dir, "work")
+
+    os.makedirs(figures_dir, exist_ok=True)
+    os.makedirs(tractmeasures_dir, exist_ok=True)
+    os.makedirs(work_dir, exist_ok=True)
+
+    output_stem = os.path.basename(args.output)
+    work_prefix = os.path.join(work_dir, output_stem)
+    fig_prefix = os.path.join(figures_dir, output_stem)
+    tractmeasures_csv = os.path.join(tractmeasures_dir, "tractmeasures.csv")
+
     # Parse y-axis range if provided
     ymin, ymax = None, None
     if args.y_axis_range is not None:
@@ -1142,7 +1160,7 @@ def main():
         plt.title("Classic Yeatman AFQ-style Tract Profiles")
         if not args.no_legend: plt.legend(fontsize=20)
         plt.tight_layout()
-        plt.savefig(f"{args.output}_Yeatman_profiles.png", dpi=300)
+        plt.savefig(f"{fig_prefix}_Yeatman_profiles.png", dpi=300)
         plt.close()
         print(f"[INFO] Saved Yeatman overlay plot → {args.output}_Yeatman_profiles.png")
         
@@ -1153,7 +1171,7 @@ def main():
         tract_profiles_dir = os.path.join(base_dir, "tract_profiles")
         os.makedirs(tract_profiles_dir, exist_ok=True)
         
-        csv_path = os.path.join(tract_profiles_dir, "tractmeasures.csv")
+        csv_path = os.path.join(tractmeasures_dir, "tractmeasures.csv")
         with open(csv_path, "w", newline="") as f:
              writer = csv.DictWriter(
                  f,
@@ -1183,7 +1201,7 @@ def main():
         reference_path = reference_paths[t_idx]
         tract_name = os.path.splitext(os.path.basename(tract_path))[0]
         color_main = tract_colors[t_idx]
-        output_prefix = f"{args.output}_{tract_name}"
+        output_prefix = f"{work_prefix}_{tract_name}"
         print(f"\n[INFO] Processing tract: {tract_name}")
 
         # Load data
@@ -1385,8 +1403,10 @@ def main():
         plt.close()
 
         # --- 3D and distance visualization ---
-        plot_3d_refs(streamlines, ref_curves, output_prefix, max_display=300)
-        plot_distance_histograms(streamlines, ref_curves, output_prefix, no_legend=args.no_legend)
+        figure_output_prefix = f"{fig_prefix}_{tract_name}"
+        work_output_prefix = f"{work_prefix}_{tract_name}"
+        plot_3d_refs(streamlines, ref_curves, work_output_prefix, max_display=300)
+        plot_distance_histograms(streamlines, ref_curves, work_output_prefix, no_legend=args.no_legend)
 
         all_profiles[tract_name] = profiles
         all_ref_curves[tract_name] = ref_curves
@@ -1450,7 +1470,7 @@ def main():
         plt.legend(fontsize=fontsize)
 
     plt.tight_layout()
-    plt.savefig(f"{args.output}_multi_tracts.png", dpi=300)
+    plt.savefig(f"{fig_prefix}_multi_tracts.png", dpi=300)
     plt.close()
     print(f"[INFO] Global overlay saved → {args.output}_multi_tracts.png")
 
@@ -1551,7 +1571,7 @@ def main():
       tract_profiles_dir = os.path.join(base_dir, "tract_profiles")
       os.makedirs(tract_profiles_dir, exist_ok=True)
       
-      csv_path = os.path.join(tract_profiles_dir, "tractmeasures.csv")
+      csv_path = os.path.join(tractmeasures_dir, "tractmeasures.csv")
       
       with open(csv_path, "w", newline="") as f:
           writer = csv.DictWriter(
