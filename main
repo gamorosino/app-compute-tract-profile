@@ -361,52 +361,15 @@ done
 merge_dir="${output_dir}/tractmeasures"
 final_csv="${merge_dir}/tractmeasures.csv"
 
-python - "$merge_dir" "$final_csv" "${metric_names[@]}" <<'PY'
-import sys
-import os
-import pandas as pd
-
-merge_dir = sys.argv[1]
-final_csv = sys.argv[2]
-metric_names = sys.argv[3:]
-
-base_cols = ["subjectID", "structureID", "nodeID"]
-coord_cols = ["x_coords", "y_coords", "z_coords"]
-protected = set(base_cols + coord_cols)
-
-merged = None
-
-for metric in metric_names:
-    csv_path = os.path.join(merge_dir, f"{metric}_tractmeasures.csv")
-    if not os.path.exists(csv_path):
-        print(f"[WARN] Missing metric CSV: {csv_path}", file=sys.stderr)
-        continue
-
-    df = pd.read_csv(csv_path)
-
-    if merged is None:
-        merged = df.copy()
-    else:
-        metric_cols = [c for c in df.columns if c not in protected]
-        df_small = df[base_cols + metric_cols]
-        merged = merged.merge(df_small, on=base_cols, how="outer")
-
-if merged is None:
-    raise SystemExit("No per-metric tractmeasures CSVs found to merge.")
-
-# Keep coordinate columns at the end
-metric_cols_all = [c for c in merged.columns if c not in protected]
-ordered_cols = base_cols + metric_cols_all
-
-for c in coord_cols:
-    if c in merged.columns:
-        ordered_cols.append(c)
-
-merged = merged[ordered_cols]
-merged.to_csv(final_csv, index=False)
-
-print(f"[INFO] Saved merged tract measures -> {final_csv}")
-PY
+input_csvs=()
 for metric in "${metric_names[@]}"; do
-    rm -f "${merge_dir}/${metric}_tractmeasures.csv"
+    input_csvs+=("${merge_dir}/${metric}_tractmeasures.csv")
 done
+
+singularity exec -e \
+    docker://gamorosino/tract_align:v1.0 \
+    micromamba run -n tract_align \
+    python "${SCRIPT_DIR}/merge_tractmeasures.py" \
+        --inputs "${input_csvs[@]}" \
+        --output "${final_csv}" \
+        --delete-inputs
