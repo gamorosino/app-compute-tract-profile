@@ -72,6 +72,8 @@ def add_metric_to_tract_measure_map(
     metric_name,
     profile,
     dispersion,
+    inverse_profile=None,
+    inverse_dispersion=None,
     x_coords=None,
     y_coords=None,
     z_coords=None,
@@ -91,6 +93,34 @@ def add_metric_to_tract_measure_map(
 
         tract_measure_map[key][metric_name] = profile[node]
         tract_measure_map[key][f"{metric_name}_sd"] = dispersion[node] if dispersion is not None else ""
+
+        tract_measure_map[key][f"{metric_name}_inverse_mean"] = (
+            inverse_profile[node] if inverse_profile is not None else ""
+        )
+        tract_measure_map[key][f"{metric_name}_inverse_sd"] = (
+            inverse_dispersion[node] if inverse_dispersion is not None else ""
+        )
+
+
+def compute_inverse_profile_and_dispersion(scalar_matrix, weights=None, eps=1e-8):
+    inv_scalar_matrix = 1.0 / (scalar_matrix + eps)
+
+    if weights is None:
+        inverse_profile = np.mean(inv_scalar_matrix, axis=0)
+        inverse_dispersion = np.std(inv_scalar_matrix, axis=0)
+    else:
+        w = np.asarray(weights, dtype=float)
+
+        if w.ndim == 1:
+            w = w[:, None]
+
+        w = w / (np.sum(w, axis=0, keepdims=True) + 1e-12)
+
+        inverse_profile = np.sum(inv_scalar_matrix * w, axis=0)
+        inverse_var = np.sum(w * (inv_scalar_matrix - inverse_profile) ** 2, axis=0)
+        inverse_dispersion = np.sqrt(inverse_var)
+
+    return inverse_profile, inverse_dispersion
 
 def nature_style_plot(
     ax,
@@ -1142,28 +1172,38 @@ def main():
             yeatman_profiles[tract_path] = profile
 
             # --- Compute dispersion (optional) ---
+            scalar_matrix = compute_scalar_matrix(
+                vol, streamlines_oriented, vol_affine, n_points=args.n_points
+            )
+
             dispersion = None
             if not args.no_dispersion:
                 print(f"[INFO] Computing dispersion for {tract_path}...")
-                scalar_matrix = compute_scalar_matrix(vol, streamlines_oriented, vol_affine, n_points=args.n_points)
                 dispersion = compute_dispersion_matrix(scalar_matrix, method=args.dispersion_metric)
                 np.savez(f"{args.output}_{Path(tract_path).stem}_Yeatman_dispersion.npz", dispersion=dispersion)
             else:
                 print(f"[INFO] Dispersion disabled (--no-dispersion).")
+
+            inverse_profile, inverse_dispersion = compute_inverse_profile_and_dispersion(
+                scalar_matrix,
+                weights=weights
+            )
             
             metric_name = Path(scalar_path).stem.split(".")[0]
 
             add_metric_to_tract_measure_map(
-                tract_measure_map=tract_measure_map,
-                subject_id=args.subject_id,
-                structure_id=Path(tract_path).stem,
-                metric_name=metric_name,
-                profile=profile,
-                dispersion=dispersion,
-                x_coords=None,
-                y_coords=None,
-                z_coords=None,
-            )
+            tract_measure_map=tract_measure_map,
+            subject_id=args.subject_id,
+            structure_id=Path(tract_path).stem,
+            metric_name=metric_name,
+            profile=profile,
+            dispersion=dispersion,
+            inverse_profile=inverse_profile,
+            inverse_dispersion=inverse_dispersion,
+            x_coords=None,
+            y_coords=None,
+            z_coords=None,
+        )
                         
             # --- Save profile ---
             np.savez(f"{args.output}_{Path(tract_path).stem}_Yeatman.npz", profile=profile)
@@ -1347,18 +1387,24 @@ def main():
                                                         method=args.dispersion_metric)
             else:
                 print("[INFO] Dispersion computation disabled (--no-dispersion).")
-            
+            inverse_profile, inverse_dispersion = compute_inverse_profile_and_dispersion(
+                scalar_matrix,
+                weights=weights
+            )
             metric_name = Path(scalar_path).name.replace(".nii.gz","").replace(".nii","")
             add_metric_to_tract_measure_map(
-              tract_measure_map=tract_measure_map,
-              subject_id=args.subject_id,
-              structure_id=tract_name,
-              metric_name=metric_name,
-              profile=profile,
-              dispersion=dispersion,
-              x_coords=ref_curve[:, 0] if ref_curve is not None else None,
-              y_coords=ref_curve[:, 1] if ref_curve is not None else None,
-              z_coords=ref_curve[:, 2] if ref_curve is not None else None,    )
+                tract_measure_map=tract_measure_map,
+                subject_id=args.subject_id,
+                structure_id=tract_name,
+                metric_name=metric_name,
+                profile=profile,
+                dispersion=dispersion,
+                inverse_profile=inverse_profile,
+                inverse_dispersion=inverse_dispersion,
+                x_coords=ref_curve[:, 0] if ref_curve is not None else None,
+                y_coords=ref_curve[:, 1] if ref_curve is not None else None,
+                z_coords=ref_curve[:, 2] if ref_curve is not None else None,
+                )
             
             np.savez(f"{output_prefix}_{m}_dispersion.npz", dispersion=dispersion)
             profiles[f"{m}_dispersion"] = dispersion
@@ -1611,21 +1657,22 @@ def main():
       rows = list(tract_measure_map.values())
       rows.sort(key=lambda r: (r["structureID"], r["nodeID"]))
       
-      metric_names = sorted({
-          k[:-3] if k.endswith("_sd") else k
-          for row in rows
-          for k in row.keys()
-          if k not in {"subjectID","structureID","nodeID","x_coords","y_coords","z_coords"}
-          and not k.endswith("_coords")
-      })
+      metric_bases = set()
+
+      base_cols = ["subjectID", "structureID", "nodeID"]
+      coord_cols = ["x_coords", "y_coords", "z_coords"]
       
-      fieldnames = ["subjectID","structureID","nodeID"]
+      metric_cols = []
+      seen = set(base_cols + coord_cols)
       
-      for metric in metric_names:
-          fieldnames.extend([metric,f"{metric}_sd"])
+      for row in rows:
+          for k in row.keys():
+              if k in seen:
+                  continue
+              metric_cols.append(k)
+              seen.add(k)
       
-      fieldnames.extend(["x_coords","y_coords","z_coords"])
-      
+      fieldnames = base_cols + metric_cols + coord_cols
       with open(csv_path,"w",newline="") as f:
           writer = csv.DictWriter(f,fieldnames=fieldnames)
           writer.writeheader()
