@@ -1027,7 +1027,6 @@ def main():
     output_stem = os.path.basename(args.output)
     work_prefix = os.path.join(work_dir, output_stem)
     fig_prefix = os.path.join(figures_dir, output_stem)
-    tractmeasures_csv = os.path.join(tractmeasures_dir, f"{metric_name}_tractmeasures.csv")
 
     # Parse y-axis range if provided
     ymin, ymax = None, None
