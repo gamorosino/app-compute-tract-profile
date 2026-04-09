@@ -1448,50 +1448,50 @@ def main():
             figsize=boxplot_figsize
             
         )
-                
-    # === Pairwise comparison between tract profiles ===
-    comparison_rows = []
-
-    for (tract_name_1, profs1), (tract_name_2, profs2) in combinations(all_profiles.items(), 2):
-        if args.average_centroid:
-            key1 = "average"
-            key2 = "average"
-        else:
-            key1 = list(profs1.keys())[0]
-            key2 = list(profs2.keys())[0]
-
-        profile1 = profs1[key1]
-        profile2 = profs2[key2]
-
-        metrics = compare_profiles(profile1, profile2)
-
-        row = {
-            "tract_1": tract_name_1,
-            "tract_2": tract_name_2,
-            "method_1": key1,
-            "method_2": key2,
-            **metrics
-        }
-        comparison_rows.append(row)
-
-    # Save as CSV
-    import csv
-    csv_path = f"{args.output}_profile_comparisons.csv"
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=comparison_rows[0].keys())
-        writer.writeheader()
-        writer.writerows(comparison_rows)
-
-    print(f"[INFO] Saved pairwise profile comparisons → {csv_path}")
-
-    plot_profile_similarity_matrix(
-        all_profiles,
-        tract_labels,
-        f"{args.output}_profile_similarity_matrix.png",
-        use_key="average" if args.average_centroid else "first",
-        metric="pearson"
-    )
-    print(f"[INFO] Saved similarity matrix → {args.output}_profile_similarity_matrix.png")
+    if len(all_profiles) >= 2:            
+       # === Pairwise comparison between tract profiles ===
+       comparison_rows = []
+   
+       for (tract_name_1, profs1), (tract_name_2, profs2) in combinations(all_profiles.items(), 2):
+           if args.average_centroid:
+               key1 = "average"
+               key2 = "average"
+           else:
+               key1 = list(profs1.keys())[0]
+               key2 = list(profs2.keys())[0]
+   
+           profile1 = profs1[key1]
+           profile2 = profs2[key2]
+   
+           metrics = compare_profiles(profile1, profile2)
+   
+           row = {
+               "tract_1": tract_name_1,
+               "tract_2": tract_name_2,
+               "method_1": key1,
+               "method_2": key2,
+               **metrics
+           }
+           comparison_rows.append(row)
+   
+       # Save as CSV
+       import csv
+       csv_path = f"{args.output}_profile_comparisons.csv"
+       with open(csv_path, "w", newline="") as f:
+           writer = csv.DictWriter(f, fieldnames=comparison_rows[0].keys())
+           writer.writeheader()
+           writer.writerows(comparison_rows)
+   
+       print(f"[INFO] Saved pairwise profile comparisons → {csv_path}")
+   
+       plot_profile_similarity_matrix(
+           all_profiles,
+           tract_labels,
+           f"{args.output}_profile_similarity_matrix.png",
+           use_key="average" if args.average_centroid else "first",
+           metric="pearson"
+       )
+       print(f"[INFO] Saved similarity matrix → {args.output}_profile_similarity_matrix.png")
 
     return
 
