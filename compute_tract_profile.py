@@ -63,7 +63,7 @@ from scipy.stats import pearsonr, spearmanr
 
 from matplotlib.collections import LineCollection
 import matplotlib.colors as mcolors
-
+import csv
 def nature_style_plot(
     ax,
     ymin=None,
@@ -1061,7 +1061,7 @@ def main():
 
     all_profiles = {}
     all_ref_curves = {}
-
+    tract_measure_rows = []
     # Determine tract list
     tract_paths = [args.tract] if args.tract else args.tracts
     tract_colors = []
@@ -1104,7 +1104,19 @@ def main():
                 np.savez(f"{args.output}_{Path(tract_path).stem}_Yeatman_dispersion.npz", dispersion=dispersion)
             else:
                 print(f"[INFO] Dispersion disabled (--no-dispersion).")
-
+            
+            for node in range(len(profile)):
+                tract_measure_rows.append({
+                    "subjectID": Path(args.output).name,
+                    "structureID": Path(tract_path).stem,
+                    "nodeID": node + 1,
+                    "scalar": profile[node],
+                    "scalar_sd": dispersion[node] if dispersion is not None else "",
+                    "x_coords": "",
+                    "y_coords": "",
+                    "z_coords": "",
+                })
+            
             # --- Save profile ---
             np.savez(f"{args.output}_{Path(tract_path).stem}_Yeatman.npz", profile=profile)
             print(f"[INFO] Saved Yeatman profile → {args.output}_{Path(tract_path).stem}_Yeatman.npz")
@@ -1133,7 +1145,34 @@ def main():
         plt.savefig(f"{args.output}_Yeatman_profiles.png", dpi=300)
         plt.close()
         print(f"[INFO] Saved Yeatman overlay plot → {args.output}_Yeatman_profiles.png")
-
+        
+        base_dir = os.path.dirname(args.output)
+        if base_dir == "":
+          base_dir = "."
+        
+        tract_profiles_dir = os.path.join(base_dir, "tract_profiles")
+        os.makedirs(tract_profiles_dir, exist_ok=True)
+        
+        csv_path = os.path.join(tract_profiles_dir, "tractmeasures.csv")
+        with open(csv_path, "w", newline="") as f:
+             writer = csv.DictWriter(
+                 f,
+                 fieldnames=[
+                     "subjectID",
+                     "structureID",
+                     "nodeID",
+                     "scalar",
+                     "scalar_sd",
+                     "x_coords",
+                     "y_coords",
+                     "z_coords",
+                 ],
+             )
+             writer.writeheader()
+             writer.writerows(tract_measure_rows)
+      
+        print(f"[INFO] Saved tract measures → {csv_path}")
+      
         # skip centroid-related processing
         return
 
@@ -1254,9 +1293,21 @@ def main():
                                                         method=args.dispersion_metric)
             else:
                 print("[INFO] Dispersion computation disabled (--no-dispersion).")
-
+            
+            for node in range(len(profile)):
+                tract_measure_rows.append({
+                    "subjectID": Path(args.output).name,
+                    "structureID": tract_name,
+                    "nodeID": node + 1,
+                    "scalar": profile[node],
+                    "scalar_sd": dispersion[node] if dispersion is not None else "",
+                    "x_coords": ref_curve[node, 0] if ref_curve is not None else "",
+                    "y_coords": ref_curve[node, 1] if ref_curve is not None else "",
+                    "z_coords": ref_curve[node, 2] if ref_curve is not None else "",
+                })
+            
             np.savez(f"{output_prefix}_{m}_dispersion.npz", dispersion=dispersion)
-            profiles[f"{m}_dispersion"] = dispersion  # <— store in memory for plotting
+            profiles[f"{m}_dispersion"] = dispersion
 
             # --- Optional gray Yeatman-style line ---
             if args.no_weight_by_centroid_curve and (args.weight_by_centroid or args.no_weights or args.weight_node_by_centroid):
@@ -1492,7 +1543,36 @@ def main():
            metric="pearson"
        )
        print(f"[INFO] Saved similarity matrix → {args.output}_profile_similarity_matrix.png")
-
+    if True:    
+      base_dir = os.path.dirname(args.output)
+      if base_dir == "":
+          base_dir = "."
+      
+      tract_profiles_dir = os.path.join(base_dir, "tract_profiles")
+      os.makedirs(tract_profiles_dir, exist_ok=True)
+      
+      csv_path = os.path.join(tract_profiles_dir, "tractmeasures.csv")
+      
+      with open(csv_path, "w", newline="") as f:
+          writer = csv.DictWriter(
+              f,
+              fieldnames=[
+                  "subjectID",
+                  "structureID",
+                  "nodeID",
+                  "scalar",
+                  "scalar_sd",
+                  "x_coords",
+                  "y_coords",
+                  "z_coords",
+              ],
+          )
+          writer.writeheader()
+          writer.writerows(tract_measure_rows)
+      
+      print(f"[INFO] Saved tract measures → {csv_path}")
+      
+      return   
     return
 
 
