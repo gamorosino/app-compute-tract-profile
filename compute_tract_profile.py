@@ -102,8 +102,9 @@ def add_metric_to_tract_measure_map(
         )
 
 
-def compute_inverse_profile_and_dispersion(scalar_matrix, weights=None, eps=1e-8):
-    inv_scalar_matrix = 1.0 / (scalar_matrix + eps)
+def compute_inverse_profile_and_dispersion(scalar_matrix, weights=None):
+    inv_scalar_matrix = 1.0 / scalar_matrix
+    inv_scalar_matrix[~np.isfinite(inv_scalar_matrix)] = 0
 
     if weights is None:
         inverse_profile = np.mean(inv_scalar_matrix, axis=0)
