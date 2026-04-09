@@ -373,3 +373,7 @@ singularity exec -e \
         --inputs "${input_csvs[@]}" \
         --output "${final_csv}" \
         --delete-inputs
+
+bash "${SCRIPT_DIR}/generate_product_json.sh" \
+    "${output_dir}/figures" \
+    "${output_dir}/product.json"
