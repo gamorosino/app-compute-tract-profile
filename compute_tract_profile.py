@@ -223,7 +223,7 @@ def plot_profile_boxplot(profile_dict, labels, out_png,
                          boxplot_width=0.3,
                          boxplot_spacing=1.0,
                          figsize=(8, 6),
-                         boxplot_err="none"):
+                         boxplot_err="none",y_decimals=3):
 
     data = [np.asarray(profile_dict[label]).squeeze() for label in labels]
 
@@ -278,7 +278,7 @@ def plot_profile_boxplot(profile_dict, labels, out_png,
         positions[-1] + boxplot_width * 0.9
     )
 
-    nature_style_plot(ax, ymin=ymin, ymax=ymax, fontsize=fontsize, n_yticks=3, y_decimals=2)
+    nature_style_plot(ax, ymin=ymin, ymax=ymax, fontsize=fontsize, n_yticks=3, y_decimals=y_decimals)
 
     ax.set_xlabel(xlabel, fontsize=fontsize)
     ax.set_ylabel(ylabel, fontsize=fontsize)
@@ -1461,7 +1461,7 @@ def main():
         ax.set_xticklabels(["0", "50", "100"])
         nature_style_plot(ax, ymin, ymax, fontsize=fontsize,
                       add_origin_padding=True, 
-                      pad_fraction=0.02)
+                      pad_fraction=0.02,y_decimals=3)
         
         #set_nature_style_yticks(ax, ymin, ymax)
         #ax.spines["left"].set_linewidth(1.5)
@@ -1546,7 +1546,7 @@ def main():
     nature_style_plot(ax, ymin, ymax, fontsize=fontsize,
                       add_origin_padding=True, 
                       pad_fraction=0.02,
-                      n_yticks=3, y_decimals=2)
+                      n_yticks=3, y_decimals=3)
 
     #plt.title("Multi-Tract Profile Comparison")
     if not args.no_legend:
