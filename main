@@ -6,6 +6,7 @@
 set -euo pipefail
 
 CONFIG=${CONFIG:-config.json}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if ! command -v jq >/dev/null 2>&1; then
     echo "Error: jq is required but not found in PATH" >&2
@@ -165,8 +166,9 @@ fi
 n_points=$(jq -r '.n_points // empty' "$CONFIG")
 
 # Output dir
-output_dir=./output
-mkdir -p "${output_dir}"
+#output_dir=./output
+#mkdir -p "${output_dir}"
+output_dir="${SCRIPT_DIR}"
 
 module load singularity 2>/dev/null || true
 
