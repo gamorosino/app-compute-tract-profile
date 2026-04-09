@@ -120,6 +120,47 @@ reference_img=$(jq -r '.reference_img // empty' "$CONFIG")
 # (multi)
 references_is_array=$(jq -er '(.references | type) == "array"' "$CONFIG" 2>/dev/null || echo "false")
 
+# -----------------------------
+# Reference fallback logic
+# -----------------------------
+
+# Return success if any provided tract has a .tck extension
+has_any_tck=false
+
+# Check legacy single tract input first
+if [ -n "${tractogram:-}" ] && [[ "$tractogram" == *.tck ]]; then
+    has_any_tck=true
+fi
+
+# Check multi-tract input if present
+tracts_is_array=$(jq -er '(.tracts | type) == "array"' "$CONFIG" 2>/dev/null || echo "false")
+if [ "$tracts_is_array" = "true" ]; then
+    while IFS= read -r tract_path; do
+        if [[ "$tract_path" == *.tck ]]; then
+            has_any_tck=true
+            break
+        fi
+    done < <(jq -r '.tracts[]' "$CONFIG")
+fi
+
+# Check whether an explicit multi-reference was provided
+has_explicit_references=false
+if [ "$references_is_array" = "true" ]; then
+    n_refs=$(jq -r '.references | length' "$CONFIG" 2>/dev/null || echo "0")
+    if [ "$n_refs" -gt 0 ]; then
+        has_explicit_references=true
+    fi
+fi
+
+# Check whether an explicit single reference was provided
+has_explicit_reference_img=false
+if [ -n "${reference_img:-}" ] && [ "$reference_img" != "null" ]; then
+    has_explicit_reference_img=true
+elif [ -n "${t1w:-}" ] && [ "$t1w" != "null" ]; then
+    # keep legacy t1 behavior as an explicit reference fallback
+    has_explicit_reference_img=true
+fi
+
 # Shared numeric option
 n_points=$(jq -r '.n_points // empty' "$CONFIG")
 
@@ -141,7 +182,7 @@ args+=(--tract "$tractogram")
 # Multi-tract mode pass-through
 append_list_opt tracts --tracts
 append_list_opt scalars --scalars
-append_list_opt references --references
+
 
 # Single scalar pass-through (only used when not using legacy per-metric loop)
 if [ "$scalars_is_array" != "true" ]; then
@@ -150,12 +191,23 @@ if [ "$scalars_is_array" != "true" ]; then
         args+=(--scalar "$scalar")
     fi
 fi
-
-# reference image: prefer explicit reference_img key, else legacy t1
-if [ -n "${reference_img:-}" ] && [ "$reference_img" != "null" ]; then
-    args+=(--reference-img "$reference_img")
-elif [ -n "${t1w:-}" ] && [ "$t1w" != "null" ]; then
-    args+=(--reference-img "$t1w")
+# append_list_opt references --references
+# reference image handling
+if [ "$has_explicit_references" = "true" ]; then
+    append_list_opt references --references
+elif [ "$has_explicit_reference_img" = "true" ]; then
+    if [ -n "${reference_img:-}" ] && [ "$reference_img" != "null" ]; then
+        args+=(--reference-img "$reference_img")
+    else
+        args+=(--reference-img "$t1w")
+    fi
+elif [ "$has_any_tck" = "true" ]; then
+    # Fallback for .tck inputs: use scalar image(s) as reference(s)
+    if [ "$scalars_is_array" = "true" ]; then
+        append_list_opt scalars --references
+    elif [ -n "${scalar:-}" ] && [ "$scalar" != "null" ]; then
+        args+=(--reference-img "$scalar")
+    fi
 fi
 
 # Optional numeric args
@@ -264,10 +316,18 @@ for i in "${!metric_names[@]}"; do
     metric="${metric_names[$i]}"
     scalar_path="${metric_paths[$i]}"
 
+    legacy_cmd_args=("${args[@]}")
+
+    if [ "$has_any_tck" = "true" ] && \
+       [ "$has_explicit_reference_img" != "true" ] && \
+       [ "$has_explicit_references" != "true" ]; then
+        legacy_cmd_args+=(--reference-img "${scalar_path}")
+    fi
+    
     cmd=(python ./compute_tract_profile.py \
           --tract "${tractogram}" \
           --scalar "${scalar_path}" \
-          "${args[@]}" \
+          "${legacy_cmd_args[@]}" \
           --output "${output_dir}/${metric}")
 
     singularity exec -e \
