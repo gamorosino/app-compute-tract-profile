@@ -104,6 +104,23 @@ md=$(jq -r '.md // empty' "$CONFIG")
 ad=$(jq -r '.ad // empty' "$CONFIG")
 rd=$(jq -r '.rd // empty' "$CONFIG")
 
+subject_id=$(
+    jq -r '
+        [
+          ._inputs[]?.meta.subject // empty
+        ]
+        | map(select(. != "" ))
+        | .[0] // (
+            [
+              ._inputs[]?.meta.subject // empty
+            ]
+            | map(select(. != ""))
+            | .[0] // empty
+          )
+    ' "$CONFIG"
+)
+
+echo "subject_id:" $subject_id
 echo "tck:" $tck
 echo "fa:" $fa
 
@@ -280,7 +297,7 @@ if [ "$scalars_is_array" = "true" ] || ( [ -n "${scalar:-}" ] && [ "$scalar" != 
         args+=(--output "${output_dir}/tract_profile")
     fi
 
-    cmd=(python ./compute_tract_profile.py "${args[@]}")
+    cmd=(python ./compute_tract_profile.py "${args[@]}" --subject-id "$subject_id")
 
     singularity exec -e \
         docker://gamorosino/tract_align:v1.0 \
@@ -330,7 +347,7 @@ for i in "${!metric_names[@]}"; do
           --tract "${tractogram}" \
           --scalar "${scalar_path}" \
           "${legacy_cmd_args[@]}" \
-          --output "${output_dir}/${metric}")
+          --output "${output_dir}/${metric}" --subject-id "$subject_id")
 
     singularity exec -e \
         docker://gamorosino/tract_align:v1.0 \
