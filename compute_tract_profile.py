@@ -1202,7 +1202,7 @@ def main():
         tract_profiles_dir = os.path.join(base_dir, "tract_profiles")
         os.makedirs(tract_profiles_dir, exist_ok=True)
         
-        csv_path = os.path.join(tractmeasures_dir, "tractmeasures.csv")
+        csv_path = os.path.join(tractmeasures_dir, f"{metric_name}_tractmeasures.csv")
 
         rows = list(tract_measure_map.values())
         rows.sort(key=lambda r: (r["structureID"], r["nodeID"]))
