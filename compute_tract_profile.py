@@ -1546,7 +1546,6 @@ def main():
            comparison_rows.append(row)
    
        # Save as CSV
-       import csv
        csv_path = f"{args.output}_profile_comparisons.csv"
        with open(csv_path, "w", newline="") as f:
            writer = csv.DictWriter(f, fieldnames=comparison_rows[0].keys())
