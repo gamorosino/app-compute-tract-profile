@@ -7,6 +7,7 @@ set -euo pipefail
 
 CONFIG=${CONFIG:-config.json}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+compute_tract_profile=${SCRIPT_DIR}/compute_tract_profile.py
 
 if ! command -v jq >/dev/null 2>&1; then
     echo "Error: jq is required but not found in PATH" >&2
@@ -297,7 +298,7 @@ if [ "$scalars_is_array" = "true" ] || ( [ -n "${scalar:-}" ] && [ "$scalar" != 
         args+=(--output "${output_dir}/tract_profile")
     fi
 
-    cmd=(python ./compute_tract_profile.py "${args[@]}" --subject-id "$subject_id")
+    cmd=(python ${compute_tract_profile} "${args[@]}" --subject-id "$subject_id")
 
     singularity exec -e \
         docker://gamorosino/tract_align:v1.0 \
@@ -343,7 +344,7 @@ for i in "${!metric_names[@]}"; do
         legacy_cmd_args+=(--reference-img "${scalar_path}")
     fi
     
-    cmd=(python ./compute_tract_profile.py \
+    cmd=(python ${compute_tract_profile} \
           --tract "${tractogram}" \
           --scalar "${scalar_path}" \
           "${legacy_cmd_args[@]}" \
