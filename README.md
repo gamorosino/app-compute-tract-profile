@@ -1,5 +1,56 @@
 # Tract Profile Computation (app-compute-tract-profile)
 
+<!-- brainlife-app:begin (generated from the App manifest; edit the manifest, not this block) -->
+
+> **Computes along-tract profiles of diffusion metrics (FA, MD, RD, AD) for a tractogram with DIPY, using optional centroid, medoid or skeleton reference curves, and outputs tractmeasures CSVs and profile plots.**
+
+Resamples each streamline to n_points nodes, orients them against a reference curve (QuickBundles/MBKM centroid or medoid, a tracklib density skeleton, or its nearest real streamline), samples the scalar maps along the nodes with optional distance weighting, and computes a dispersion measure. In the brainlife configuration it runs once per tensor metric (fa, md, ad, rd) and merges the results. Use it to compare microstructure along a bundle across subjects; the tractogram should contain a single bundle in the same space as the tensor maps.
+
+| | |
+|---|---|
+| 📥 **Inputs** | `neuro/track/tck` · `neuro/tensor` · `neuro/anat/t1w` (optional) |
+| 📤 **Outputs** | `generic/images` · `neuro/tractmeasures` |
+| 🐳 **Container** | `gamorosino/tract_align:v1.0` |
+| ⚙️ **Resources** | 1 CPUs · 1 h walltime |
+| 🔗 **Run it** | [doi.org/10.25663/brainlife.app.911](https://doi.org/10.25663/brainlife.app.911) |
+
+#### 📥 Inputs
+
+| Input | Datatype | Required | Description |
+|---|---|---|---|
+| `tck` | `neuro/track/tck` | yes | Tractogram of a single white matter bundle (.tck). Must be in the same space as the tensor maps and the reference T1. |
+| `tensor` | `neuro/tensor` | yes | Tensor (DTI) dataset; its FA, MD, AD and RD maps are profiled. |
+| `reference` | `neuro/anat/t1w` | no | T1-weighted image used as spatial reference for loading .tck streamlines. |
+
+#### 📤 Outputs
+
+| Output | Datatype | Description |
+|---|---|---|
+| `figures` | `generic/images` | PNG plots of the tract profiles (and reference curve views). |
+| `tractmeasures` | `neuro/tractmeasures` | Tractmeasures CSV with the profile of each metric at every node. |
+
+<details>
+<summary><b>⚙️ Parameters</b> (9)</summary>
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `n_points` | number | `100` | Number of nodes each streamline is resampled to along the tract. |
+| `centroid_method` | enum | `skeleton` | Reference curve used to orient streamlines and weight nodes: none, QuickBundles centroid or medoid, tracklib density skeleton, or the real streamline nearest to the skeleton. Options: `none`, `centroid-qb`, `medoid-qb`, `skeleton`, `nn_skeleton`. |
+| `weight_node_by_centroid` | boolean | `true` | If true, weights each node's contribution by its distance to the reference curve (--weight-node-by-centroid). |
+| `dispersion_metric` | enum | `mad` | Dispersion measure computed across streamlines at each node: std, cv, var or mad. Options: `std`, `cv`, `var`, `mad`. |
+| `color_map` | string | `jet` | Matplotlib colormap used in the profile plots. |
+| `perc` | number | `0.95` | Percentile of the voxel density used to extract the skeleton backbone (skeleton methods). |
+| `smooth_density` | boolean | `false` | If true, applies Gaussian smoothing to the voxel density map before skeleton extraction. |
+| `length_thr` | number | `0.25` | Minimum length fraction for a backbone segment to be kept (skeleton methods). |
+| `no_legend` | boolean | `true` | If true, hides the legend in the profile plots. |
+
+</details>
+
+📚 **References used by this App:**
+- Hayashi S, et al. brainlife.io: a decentralized and open-source cloud platform to support neuroscience research. Nat Methods 21(5):809-813 (2024). [doi:10.1038/s41592-024-02237-2](https://doi.org/10.1038/s41592-024-02237-2)
+
+<!-- brainlife-app:end -->
+
 `app-compute-tract-profile` computes diffusion metric/scalar profiles along white matter tracts using `compute_tract_profile.py` (tract profiling with optional centroid/medoid/skeleton reference curves, weighting strategies, dispersion, and multiple plotting outputs).
 
 Repository contents:
